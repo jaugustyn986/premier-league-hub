@@ -4,16 +4,11 @@ import type React from "react"
 import { useState } from "react"
 import {
   Calendar,
-  Trophy,
-  Users,
-  TrendingUp,
-  Star,
   ArrowRight,
   Check,
   ChevronDown,
   Twitter,
   ImageIcon,
-  Video,
 } from "lucide-react"
 import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
