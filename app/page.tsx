@@ -36,6 +36,26 @@ export interface NewsItem {
   timestamp: string;
 }
 
+// Raw API types
+interface StandingsApiTeam {
+  rank: number;
+  team: { name: string; logo: string };
+  all: { played: number };
+  points: number;
+  form: string;
+}
+
+interface TopScorerApi {
+  player: { name: string; photo: string };
+  statistics: [{ team: { name: string; logo: string }; goals: { total: number } }];
+}
+
+interface FixtureApi {
+  teams: { home: { name: string; logo: string }; away: { name: string; logo: string } };
+  goals: { home: number; away: number };
+  fixture: { date: string };
+}
+
 // Helper function to get the most recent available season for the free API plan
 function getAvailableSeasons() {
   // Update this list if API changes
@@ -68,13 +88,13 @@ async function getStandings(): Promise<StandingsTeam[]> {
       if (standingsData.length < 20) {
         console.warn(`Warning: Only ${standingsData.length} teams returned in standings for season ${season}!`);
       }
-      return standingsData.map((team: Record<string, unknown>): StandingsTeam => ({
-        position: (team as any).rank,
-        team: (team as any).team.name,
-        logo: (team as any).team.logo,
-        played: (team as any).all.played,
-        points: (team as any).points,
-        form: ((team as any).form || "").split(""),
+      return standingsData.map((team: StandingsApiTeam): StandingsTeam => ({
+        position: team.rank,
+        team: team.team.name,
+        logo: team.team.logo,
+        played: team.all.played,
+        points: team.points,
+        form: (team.form || "").split(""),
       }));
     } catch (error) {
       console.error(`Error fetching standings for season ${season}:`, error);
@@ -107,12 +127,12 @@ async function getTopScorers(): Promise<TopScorer[]> {
       if (!data.response) {
         continue;
       }
-      return data.response.map((item: Record<string, unknown>): TopScorer => ({
-        name: (item as any).player.name,
-        team: (item as any).statistics[0].team.name,
-        goals: (item as any).statistics[0].goals.total,
-        logo: (item as any).statistics[0].team.logo,
-        photo: (item as any).player.photo,
+      return data.response.map((item: TopScorerApi): TopScorer => ({
+        name: item.player.name,
+        team: item.statistics[0].team.name,
+        goals: item.statistics[0].goals.total,
+        logo: item.statistics[0].team.logo,
+        photo: item.player.photo,
       }));
     } catch (error) {
       console.error(`Error fetching top scorers for season ${season}:`, error);
@@ -158,15 +178,15 @@ async function getMatches(type: 'fixtures' | 'results'): Promise<Fixture[]> {
       if (!data.response) {
         continue;
       }
-      const fixtures = data.response.map((match: Record<string, unknown>): Fixture => ({
-        home: (match as any).teams.home.name,
-        away: (match as any).teams.away.name,
-        homeLogo: (match as any).teams.home.logo,
-        awayLogo: (match as any).teams.away.logo,
-        homeScore: (match as any).goals.home,
-        awayScore: (match as any).goals.away,
-        time: new Date((match as any).fixture.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-        date: new Date((match as any).fixture.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      const fixtures = data.response.map((match: FixtureApi): Fixture => ({
+        home: match.teams.home.name,
+        away: match.teams.away.name,
+        homeLogo: match.teams.home.logo,
+        awayLogo: match.teams.away.logo,
+        homeScore: match.goals.home,
+        awayScore: match.goals.away,
+        time: new Date(match.fixture.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+        date: new Date(match.fixture.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       })).sort((a: Fixture, b: Fixture) => new Date(a.date).getTime() - new Date(b.date).getTime());
       return fixtures;
     } catch (error) {
