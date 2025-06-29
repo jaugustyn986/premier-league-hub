@@ -36,18 +36,6 @@ export interface NewsItem {
   timestamp: string;
 }
 
-// Helper function to get the current season year
-function getCurrentSeason() {
-  const today = new Date();
-  const year = today.getFullYear();
-  // Premier League seasons start in August and end in May the next year
-  // If today is before August, we're still in the previous season
-  if (today.getMonth() < 7) {
-    return year - 1;
-  }
-  return year;
-}
-
 // Helper function to get the most recent available season for the free API plan
 function getAvailableSeasons() {
   // Update this list if API changes
@@ -80,7 +68,7 @@ async function getStandings(): Promise<StandingsTeam[]> {
       if (standingsData.length < 20) {
         console.warn(`Warning: Only ${standingsData.length} teams returned in standings for season ${season}!`);
       }
-      return standingsData.map((team: any) => ({
+      return standingsData.map((team: any): StandingsTeam => ({
         position: team.rank,
         team: team.team.name,
         logo: team.team.logo,
@@ -119,7 +107,7 @@ async function getTopScorers(): Promise<TopScorer[]> {
       if (!data.response) {
         continue;
       }
-      return data.response.map((item: any) => ({
+      return data.response.map((item: any): TopScorer => ({
         name: item.player.name,
         team: item.statistics[0].team.name,
         goals: item.statistics[0].goals.total,
@@ -170,7 +158,7 @@ async function getMatches(type: 'fixtures' | 'results'): Promise<Fixture[]> {
       if (!data.response) {
         continue;
       }
-      const fixtures = data.response.map((match: any) => ({
+      const fixtures = data.response.map((match: any): Fixture => ({
         home: match.teams.home.name,
         away: match.teams.away.name,
         homeLogo: match.teams.home.logo,
@@ -179,7 +167,7 @@ async function getMatches(type: 'fixtures' | 'results'): Promise<Fixture[]> {
         awayScore: match.goals.away,
         time: new Date(match.fixture.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
         date: new Date(match.fixture.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      })).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      })).sort((a: Fixture, b: Fixture) => new Date(a.date).getTime() - new Date(b.date).getTime());
       return fixtures;
     } catch (error) {
       console.error(`Error fetching matches for season ${season}:`, error);

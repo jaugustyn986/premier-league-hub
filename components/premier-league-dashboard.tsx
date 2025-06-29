@@ -4,24 +4,20 @@ import type React from "react"
 import { useState } from "react"
 import {
   Calendar,
-  Clock,
   Trophy,
   Users,
   TrendingUp,
   Star,
   ArrowRight,
-  Heart,
-  X,
   Check,
   ChevronDown,
+  Twitter,
+  ImageIcon,
+  Video,
 } from "lucide-react"
-import { MessageCircle, Share2, MoreHorizontal, ImageIcon, Video, Twitter, Repeat2, Reply } from "lucide-react"
 import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
-
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -52,34 +48,11 @@ export default function PremierLeagueDashboard({
 }) {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false)
-  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set())
   const [newPost, setNewPost] = useState("")
   const [isTableExpanded, setIsTableExpanded] = useState(false)
   const [isNewsExpanded, setIsNewsExpanded] = useState(true)
   const [isTwitterExpanded, setIsTwitterExpanded] = useState(true)
   const [isFixturesExpanded, setIsFixturesExpanded] = useState(true)
-
-  const [isCustomizeMode, setIsCustomizeMode] = useState(false)
-  const [sectionOrder, setSectionOrder] = useState([
-    "team-overview",
-    "news",
-    "fixtures",
-    "twitter",
-    "league-table",
-    "top-scorers",
-    "quick-stats",
-    "social-feed",
-  ])
-  const [sectionSizes, setSectionSizes] = useState({
-    "team-overview": "col-span-2",
-    news: "col-span-2",
-    fixtures: "col-span-2",
-    twitter: "col-span-1",
-    "league-table": "col-span-1 row-span-2",
-    "top-scorers": "col-span-1",
-    "quick-stats": "col-span-1",
-    "social-feed": "col-span-3",
-  })
 
   const teams = [
     { name: "Arsenal", shortName: "ARS", color: "bg-red-600", logo: "https://media.api-sports.io/football/teams/42.png" },
@@ -395,35 +368,6 @@ export default function PremierLeagueDashboard({
     return 0
   }
 
-  const handleLike = (postId: number) => {
-    setLikedPosts((prev) => {
-      const newLikedPosts = new Set(prev)
-      if (newLikedPosts.has(postId)) {
-        newLikedPosts.delete(postId)
-      } else {
-        newLikedPosts.add(postId)
-      }
-      return newLikedPosts
-    })
-  }
-
-  const getPostIcon = (type: string) => {
-    switch (type) {
-      case "match_result":
-        return <Trophy className="h-4 w-4" />
-      case "transfer":
-        return <Users className="h-4 w-4" />
-      case "analysis":
-        return <TrendingUp className="h-4 w-4" />
-      case "video":
-        return <Video className="h-4 w-4" />
-      case "highlights":
-        return <Star className="h-4 w-4" />
-      default:
-        return null
-    }
-  }
-
   // --- UI Rendering ---
 
   const renderSection = (sectionId: string) => {
@@ -583,7 +527,7 @@ export default function PremierLeagueDashboard({
                 </TabsList>
                 <TabsContent value="fixtures">
                   <div className="divide-y divide-gray-200">
-                    {getTeamFixtures().map((fixture: any, index: number) => (
+                    {getTeamFixtures().map((fixture: Fixture, index: number) => (
                       <div key={index} className="flex items-center justify-between py-4">
                         <div className="flex items-center gap-2 min-w-[120px]">
                           <Avatar className="w-8 h-8">
@@ -609,7 +553,7 @@ export default function PremierLeagueDashboard({
                 </TabsContent>
                 <TabsContent value="results">
                   <div className="divide-y divide-gray-200">
-                    {getTeamResults().map((result: any, index: number) => (
+                    {getTeamResults().map((result: Fixture, index: number) => (
                       <div key={index} className="flex items-center justify-between py-4">
                         <div className="flex items-center gap-2 min-w-[120px]">
                           <Avatar className="w-8 h-8">
@@ -655,7 +599,7 @@ export default function PremierLeagueDashboard({
                 <div className="w-8 text-center">Pts</div>
                 <div className="w-20 text-center">Form</div>
               </div>
-              {initialStandings.slice(0, isTableExpanded ? 20 : 10).map((team: any, index: number) => (
+              {initialStandings.slice(0, isTableExpanded ? 20 : 10).map((team: StandingsTeam, index: number) => (
                 <div key={index} className="flex items-center text-sm font-medium">
                   <div className="w-6">{team.position}</div>
                   <div className="flex-1 flex items-center space-x-2">
@@ -742,7 +686,7 @@ export default function PremierLeagueDashboard({
             <CardDescription>Golden Boot Race</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {topScorers.slice(0, 5).map((scorer: any, index: number) => (
+            {topScorers.slice(0, 5).map((scorer: TopScorer, index: number) => (
               <div key={index} className="flex items-center justify-between text-sm">
                 <div className="flex items-center space-x-2">
                   <span className="w-5 font-bold">{index + 1}</span>
@@ -796,7 +740,7 @@ export default function PremierLeagueDashboard({
     }
 
     return (
-      <div className={sectionSizes[sectionId as keyof typeof sectionSizes]}>
+      <div>
         {sectionComponents[sectionId]}
       </div>
     )
@@ -861,13 +805,6 @@ export default function PremierLeagueDashboard({
                 </div>
               </DialogContent>
             </Dialog>
-
-            <Button
-              variant={isCustomizeMode ? "default" : "outline"}
-              onClick={() => setIsCustomizeMode(!isCustomizeMode)}
-            >
-              {isCustomizeMode ? "Done" : "Customize"}
-            </Button>
           </div>
         </div>
       </header>
