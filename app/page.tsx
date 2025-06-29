@@ -1,5 +1,41 @@
 import PremierLeagueDashboard from "@/components/premier-league-dashboard"
 
+// Types
+export interface StandingsTeam {
+  position: number;
+  team: string;
+  logo: string;
+  played: number;
+  points: number;
+  form: string[];
+}
+
+export interface Fixture {
+  home: string;
+  away: string;
+  homeLogo: string;
+  awayLogo: string;
+  homeScore?: number;
+  awayScore?: number;
+  time: string;
+  date: string;
+}
+
+export interface TopScorer {
+  name: string;
+  team: string;
+  goals: number;
+  logo: string;
+  photo: string;
+}
+
+export interface NewsItem {
+  id: number;
+  title: string;
+  source: string;
+  timestamp: string;
+}
+
 // Helper function to get the current season year
 function getCurrentSeason() {
   const today = new Date();
@@ -12,150 +48,153 @@ function getCurrentSeason() {
   return year;
 }
 
-async function getStandings() {
-  const season = getCurrentSeason()
-  const url = `https://v3.football.api-sports.io/standings?league=39&season=${season}`
-  const apiKey = process.env.API_FOOTBALL_KEY
-  const options = {
-    method: "GET",
-    headers: {
-      "x-rapidapi-host": "v3.football.api-sports.io",
-      "x-rapidapi-key": apiKey!,
-    },
-  }
-
-  try {
-    const response = await fetch(url, options)
-    
-    if (!response.ok) {
-      console.error("API response not ok:", response.status, response.statusText)
-      return getMockStandings()
-    }
-    
-    const data = await response.json()
-    
-    if (data.errors && Object.keys(data.errors).length > 0) {
-      console.error("API error fetching standings:", data.errors)
-      return getMockStandings()
-    }
-
-    if (!data.response || data.response.length === 0 || !data.response[0].league || !data.response[0].league.standings) {
-      console.error("Unexpected API response structure:", data)
-      return getMockStandings()
-    }
-    const standingsData = data.response[0].league.standings[0]
-    
-    return standingsData.map((team: any) => ({
-      position: team.rank,
-      team: team.team.name,
-      logo: team.team.logo,
-      played: team.all.played,
-      points: team.points,
-      form: (team.form || "").split(""),
-    }))
-  } catch (error) {
-    console.error("Error fetching standings:", error)
-    return getMockStandings()
-  }
+// Helper function to get the most recent available season for the free API plan
+function getAvailableSeasons() {
+  // Update this list if API changes
+  return [2024, 2023, 2022, 2021];
 }
 
-async function getTopScorers(season: number) {
-  const url = `https://v3.football.api-sports.io/players/topscorers?league=39&season=${season}`
-  const options = {
-    method: "GET",
-    headers: {
-      "x-rapidapi-host": "v3.football.api-sports.io",
-      "x-rapidapi-key": process.env.API_FOOTBALL_KEY!,
-    },
-  }
-  try {
-    const response = await fetch(url, options)
-    const data = await response.json()
-
-    if (data.errors && Object.keys(data.errors).length > 0) {
-      console.error("API error fetching top scorers:", data.errors)
-      return getMockTopScorers()
+async function getStandings(): Promise<StandingsTeam[]> {
+  const seasons = getAvailableSeasons();
+  const apiKey = process.env.API_FOOTBALL_KEY;
+  for (const season of seasons) {
+    const url = `https://v3.football.api-sports.io/standings?league=39&season=${season}`;
+    const options = {
+      method: "GET",
+      headers: {
+        "x-rapidapi-host": "v3.football.api-sports.io",
+        "x-rapidapi-key": apiKey!,
+      },
+    };
+    try {
+      const response = await fetch(url, options);
+      const data = await response.json();
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.warn(`Standings for season ${season} not available:`, data.errors);
+        continue; // Try next season
+      }
+      if (!data.response || data.response.length === 0 || !data.response[0].league || !data.response[0].league.standings) {
+        continue;
+      }
+      const standingsData = data.response[0].league.standings[0];
+      if (standingsData.length < 20) {
+        console.warn(`Warning: Only ${standingsData.length} teams returned in standings for season ${season}!`);
+      }
+      return standingsData.map((team: any) => ({
+        position: team.rank,
+        team: team.team.name,
+        logo: team.team.logo,
+        played: team.all.played,
+        points: team.points,
+        form: (team.form || "").split(""),
+      }));
+    } catch (error) {
+      console.error(`Error fetching standings for season ${season}:`, error);
+      continue;
     }
-
-    if (!data.response) {
-      console.error("Unexpected API response structure for top scorers:", data)
-      return getMockTopScorers()
-    }
-    return data.response.map((item: any) => ({
-      name: item.player.name,
-      team: item.statistics[0].team.name,
-      goals: item.statistics[0].goals.total,
-      logo: item.statistics[0].team.logo,
-      photo: item.player.photo,
-    }))
-  } catch (error) {
-    console.error("Error fetching top scorers:", error)
-    return getMockTopScorers()
   }
+  // If all fail, fallback to mock
+  return getMockStandings();
 }
 
-async function getMatches(season: number, from: string, to: string) {
-  const url = `https://v3.football.api-sports.io/fixtures?league=39&season=${season}&from=${from}&to=${to}`
-  const options = {
-    method: "GET",
-    headers: {
-      "x-rapidapi-host": "v3.football.api-sports.io",
-      "x-rapidapi-key": process.env.API_FOOTBALL_KEY!,
-    },
-  }
-  try {
-    const response = await fetch(url, options)
-    const data = await response.json()
-    console.log("API response for fixtures:", data)
-
-    if (data.errors && Object.keys(data.errors).length > 0) {
-      console.error(`API error fetching matches:`, data.errors)
-      const fallback = from > to ? getMockResults() : getMockFixtures()
-      console.log("Returning fallback fixtures (error):", fallback)
-      return fallback
+async function getTopScorers(): Promise<TopScorer[]> {
+  const seasons = getAvailableSeasons();
+  const apiKey = process.env.API_FOOTBALL_KEY;
+  for (const season of seasons) {
+    const url = `https://v3.football.api-sports.io/players/topscorers?league=39&season=${season}`;
+    const options = {
+      method: "GET",
+      headers: {
+        "x-rapidapi-host": "v3.football.api-sports.io",
+        "x-rapidapi-key": apiKey!,
+      },
+    };
+    try {
+      const response = await fetch(url, options);
+      const data = await response.json();
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.warn(`Top scorers for season ${season} not available:`, data.errors);
+        continue;
+      }
+      if (!data.response) {
+        continue;
+      }
+      return data.response.map((item: any) => ({
+        name: item.player.name,
+        team: item.statistics[0].team.name,
+        goals: item.statistics[0].goals.total,
+        logo: item.statistics[0].team.logo,
+        photo: item.player.photo,
+      }));
+    } catch (error) {
+      console.error(`Error fetching top scorers for season ${season}:`, error);
+      continue;
     }
-
-    if (!data.response) {
-      console.error(`Unexpected API response structure for matches:`, data)
-      const fallback = from > to ? getMockResults() : getMockFixtures()
-      console.log("Returning fallback fixtures (no response):", fallback)
-      return fallback
-    }
-    const fixtures = data.response.map((match: any) => ({
-      home: match.teams.home.name,
-      away: match.teams.away.name,
-      homeLogo: match.teams.home.logo,
-      awayLogo: match.teams.away.logo,
-      homeScore: match.goals.home,
-      awayScore: match.goals.away,
-      time: new Date(match.fixture.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-      date: new Date(match.fixture.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    })).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    console.log("Returning fixtures:", fixtures)
-    return fixtures
-  } catch (error) {
-    console.error(`Error fetching matches:`, error)
-    const fallback = from > to ? getMockResults() : getMockFixtures()
-    console.log("Returning fallback fixtures (exception):", fallback)
-    return fallback
   }
+  return getMockTopScorers();
+}
+
+async function getMatches(type: 'fixtures' | 'results'): Promise<Fixture[]> {
+  const seasons = getAvailableSeasons();
+  const apiKey = process.env.API_FOOTBALL_KEY;
+  const today = new Date();
+  const fromDate = new Date();
+  fromDate.setDate(today.getDate() - 7);
+  const toDate = new Date();
+  toDate.setDate(today.getDate() + 30);
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  for (const season of seasons) {
+    let from, to;
+    if (type === 'fixtures') {
+      from = formatDate(today);
+      to = formatDate(toDate);
+    } else {
+      from = formatDate(fromDate);
+      to = formatDate(today);
+    }
+    const url = `https://v3.football.api-sports.io/fixtures?league=39&season=${season}&from=${from}&to=${to}`;
+    const options = {
+      method: "GET",
+      headers: {
+        "x-rapidapi-host": "v3.football.api-sports.io",
+        "x-rapidapi-key": apiKey!,
+      },
+    };
+    try {
+      const response = await fetch(url, options);
+      const data = await response.json();
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.warn(`Matches for season ${season} not available:`, data.errors);
+        continue;
+      }
+      if (!data.response) {
+        continue;
+      }
+      const fixtures = data.response.map((match: any) => ({
+        home: match.teams.home.name,
+        away: match.teams.away.name,
+        homeLogo: match.teams.home.logo,
+        awayLogo: match.teams.away.logo,
+        homeScore: match.goals.home,
+        awayScore: match.goals.away,
+        time: new Date(match.fixture.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+        date: new Date(match.fixture.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      })).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      return fixtures;
+    } catch (error) {
+      console.error(`Error fetching matches for season ${season}:`, error);
+      continue;
+    }
+  }
+  return type === 'fixtures' ? getMockFixtures() : getMockResults();
 }
 
 export default async function PremierLeagueHub() {
-  const season = getCurrentSeason()
-  const today = new Date()
-  const fromDate = new Date()
-  fromDate.setDate(today.getDate() - 7)
-  const toDate = new Date()
-  toDate.setDate(today.getDate() + 30)
-
-  const formatDate = (date: Date) => date.toISOString().split('T')[0]
-
-  const standings = await getStandings()
-  const topScorers = await getTopScorers(season)
-  const fixtures = await getMatches(season, formatDate(today), formatDate(toDate))
-  const results = await getMatches(season, formatDate(fromDate), formatDate(today))
-  const news = getMockNews()
+  const standings = await getStandings();
+  const topScorers = await getTopScorers();
+  const fixtures = await getMatches('fixtures');
+  const results = await getMatches('results');
+  const news = getMockNews();
 
   return (
     <PremierLeagueDashboard
@@ -165,7 +204,7 @@ export default async function PremierLeagueHub() {
       results={results}
       topScorers={topScorers}
     />
-  )
+  );
 }
 
 // Mock Data Functions
@@ -199,8 +238,8 @@ function getMockFixtures() {
 
 function getMockResults() {
   return [
-    { home: "Liverpool", away: "Wolves", homeScore: 2, awayScore: 0, date: "May 19" },
-    { home: "Manchester United", away: "Brighton", homeScore: 2, awayScore: 0, date: "May 19" },
+    { home: "Liverpool", away: "Wolves", homeScore: 2, awayScore: 0, date: "May 19", time: "" },
+    { home: "Manchester United", away: "Brighton", homeScore: 2, awayScore: 0, date: "May 19", time: "" },
   ].map((r) => ({ 
     ...r, 
     homeLogo: `https://media.api-sports.io/football/teams/${getTeamId(r.home)}.png`,

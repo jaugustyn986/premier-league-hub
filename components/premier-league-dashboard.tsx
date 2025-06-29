@@ -35,6 +35,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
+import type { StandingsTeam, Fixture, TopScorer, NewsItem } from "@/app/page"
+
 export default function PremierLeagueDashboard({
   initialStandings,
   news,
@@ -42,11 +44,11 @@ export default function PremierLeagueDashboard({
   results,
   topScorers,
 }: {
-  initialStandings: any[]
-  news: any[]
-  fixtures: any[]
-  results: any[]
-  topScorers: any[]
+  initialStandings: StandingsTeam[]
+  news: NewsItem[]
+  fixtures: Fixture[]
+  results: Fixture[]
+  topScorers: TopScorer[]
 }) {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null)
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false)
@@ -55,6 +57,7 @@ export default function PremierLeagueDashboard({
   const [isTableExpanded, setIsTableExpanded] = useState(false)
   const [isNewsExpanded, setIsNewsExpanded] = useState(true)
   const [isTwitterExpanded, setIsTwitterExpanded] = useState(true)
+  const [isFixturesExpanded, setIsFixturesExpanded] = useState(true)
 
   const [isCustomizeMode, setIsCustomizeMode] = useState(false)
   const [sectionOrder, setSectionOrder] = useState([
@@ -160,7 +163,7 @@ export default function PremierLeagueDashboard({
 
   const getTeamPosition = () => {
     if (!selectedTeam) return null
-    return initialStandings.find((team: any) => team.team === selectedTeam)
+    return initialStandings.find((team) => team.team === selectedTeam)
   }
 
   const getSocialFeed = (teamName: string) => {
@@ -559,14 +562,19 @@ export default function PremierLeagueDashboard({
         </Card>
       ),
       fixtures: (
-        <div className="flex justify-center w-full">
-          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-center flex items-center justify-center gap-2">
+        <Card className="w-full bg-white dark:bg-gray-800 shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-center flex items-center gap-2">
                 <Calendar className="inline-block w-5 h-5 text-green-600" />
                 Fixtures & Results
               </CardTitle>
-            </CardHeader>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setIsFixturesExpanded(!isFixturesExpanded)}>
+              <ChevronDown className={`w-5 h-5 transition-transform ${isFixturesExpanded ? "" : "-rotate-90"}`} />
+            </Button>
+          </CardHeader>
+          {isFixturesExpanded && (
             <CardContent>
               <Tabs defaultValue="fixtures" className="w-full">
                 <TabsList className="w-full flex justify-center mb-4 bg-gray-100 dark:bg-gray-900 rounded-lg">
@@ -627,8 +635,8 @@ export default function PremierLeagueDashboard({
                 </TabsContent>
               </Tabs>
             </CardContent>
-          </Card>
-        </div>
+          )}
+        </Card>
       ),
       "league-table": (
         <Card
@@ -872,8 +880,8 @@ export default function PremierLeagueDashboard({
             {renderSection("fixtures")}
           </div>
           <div className="flex flex-col gap-6">
-            {renderSection("twitter")}
             {renderSection("league-table")}
+            {renderSection("twitter")}
             {renderSection("quick-stats")}
             {renderSection("top-scorers")}
           </div>
